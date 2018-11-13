@@ -10,7 +10,7 @@ library(data.table)
 
 # download.file("http://theses.gla.ac.uk/8666/1/2018Rodriguez-PerezPhD.pdf", "./mypaper.pdf")
 
-document <- "./JournalChapter1.pdf"
+
 
 getPDFTermStats <- function(filename) {
 
@@ -44,8 +44,34 @@ getPDFTermStats <- function(filename) {
   return(dfs)
 }
 
-tstats <- getPDFTermStats(document)
 
+document <- d
+tokens <- c("patient")
+
+getDocumentParagraphsForTokens <- function(document, tokens, around = TRUE){
+  
+
+  searchPattern <- paste0(tokens, "|", collapse = "")
+  searchPattern <- substr(searchPattern,1,str_length(searchPattern)-1)
+  
+  
+  text <- pdf_text(document)
+  
+  text %>% str_split("\n") -> a
+  
+  a %>% unlist %>% str_trim() %>% str_to_lower() -> b
+  
+  grepl( str_to_lower(searchPattern) , b ) -> c
+  
+  if(around) {
+    shift(c, n=1, fill=0, type="lag") | shift(c, n=1, fill=0, type="lead") | c -> matches_and_leads
+  } else {
+    c -> matches_and_leads
+  }
+  
+  b[matches_and_leads]
+  
+}
 
 
 
@@ -74,22 +100,58 @@ getTablesPerPage <- function(document){
 }
 
 
+getPagesWithTerms <- function(terms, tstats){
+  
+  tstats %>% filter( str_detect(ngram,"sub") ) %>% select(page) %>% distinct
+  
+}
+
+
+document <- "./CLAF237A2301-2276.pdf"
+tstats <- getPDFTermStats(document)
+
 doctables <- getTablesPerPage(document)
 
 
-# 
-# text_df %>%
-#   unnest_tokens(word, text, token = "ngrams", n = 3, n_min = 3) %>% 
-#   anti_join(stop_words) %>% count(word, sort=TRUE)
+
+docs <- paste0("/home/suso/allpdfs/allpdfs/",list.files("/home/suso/allpdfs/allpdfs"))
+
+# docs <- c("./CLAF237A2301-2276.pdf","./CLAF237A2301-2276.pdf")
 
 
-f <- system.file(".","mypaper.pdf", package = "tabulizer")
-out1 <- extract_tables(f)
-str(out1)
 
-# 
-# f <- system.file("examples", "data.pdf", package = "tabulizer")
-# out1 <- extract_tables("./mypaper.pdf")
-# 
-# out1[[1]][,1]
+for( d in 1:length(docs) ){
+ 
+  
+  print(paste0(d,"/",length(docs)))
+  
+  d <- docs[d]
+  
+  tryCatch(
+    {
+      res <- getDocumentParagraphsForTokens(d, c("subgroup","sub-group"))
+      
+      # res <- getDocumentParagraphsForTokens(d, c("patient","population"), FALSE)
+      
+      if ( length(res) > 0 ){
+        if (!exists("result")){
+            result <- data.table(doc=d,sentences=res)
+        } else {
+            result <- result %>% rbind(data.table(doc=d,sentences=res))
+        }
+      }
+  
+    },
+    error= function(cond){
+      print(paste0(d, " : ", cond))
+    },
+    warning= function(cond){
+      # print(d)
+    }
+    
+    )
+  
+}
+
+
 
