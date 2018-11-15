@@ -11,7 +11,6 @@ library(data.table)
 # download.file("http://theses.gla.ac.uk/8666/1/2018Rodriguez-PerezPhD.pdf", "./mypaper.pdf")
 
 
-
 getPDFTermStats <- function(filename) {
 
   text <- pdf_text(filename)
@@ -45,8 +44,8 @@ getPDFTermStats <- function(filename) {
 }
 
 
-document <- d
-tokens <- c("patient")
+# document <- d
+# tokens <- c("patient")
 
 getDocumentParagraphsForTokens <- function(document, tokens, around = TRUE){
   
@@ -107,51 +106,52 @@ getPagesWithTerms <- function(terms, tstats){
 }
 
 
-document <- "./CLAF237A2301-2276.pdf"
-tstats <- getPDFTermStats(document)
-
-doctables <- getTablesPerPage(document)
-
+# document <- "./CLAF237A2301-2276.pdf"
+# tstats <- getPDFTermStats(document)
+# doctables <- getTablesPerPage(document)
 
 
-docs <- paste0("/home/suso/allpdfs/allpdfs/",list.files("/home/suso/allpdfs/allpdfs"))
+# Given tokens do a seach on sentences of all PDFS located within the folder. // folder is a string that needs to be terminated with "/"
+findTokensInSentences <- function (folder, tokens){
 
-# docs <- c("./CLAF237A2301-2276.pdf","./CLAF237A2301-2276.pdf")
-
-
-
-for( d in 1:length(docs) ){
- 
+  docs <- paste0(folder,list.files(folder))
   
-  print(paste0(d,"/",length(docs)))
-  
-  d <- docs[d]
-  
-  tryCatch(
-    {
-      res <- getDocumentParagraphsForTokens(d, c("subgroup","sub-group"))
+    for( d in 1:length(docs) ){
+     
+      print(paste0(d,"/",length(docs), " : ", docs[d]))
       
-      # res <- getDocumentParagraphsForTokens(d, c("patient","population"), FALSE)
+      d <- docs[d]
       
-      if ( length(res) > 0 ){
-        if (!exists("result")){
-            result <- data.table(doc=d,sentences=res)
-        } else {
-            result <- result %>% rbind(data.table(doc=d,sentences=res))
+      tryCatch(
+        {
+          res <- getDocumentParagraphsForTokens(d, tokens)
+          
+          # res <- getDocumentParagraphsForTokens(d, c("patient","population"), FALSE)
+          
+          if ( length(res) > 0 ){
+            if (!exists("result")){
+                result <- data.table(doc=d,sentences=res)
+            } else {
+                result <- result %>% rbind(data.table(doc=d,sentences=res))
+            }
+          }
+      
+        },
+        error= function(cond){
+          print(paste0(d, " : ", cond))
+        },
+        warning= function(cond){
+          # print(d)
         }
-      }
-  
-    },
-    error= function(cond){
-      print(paste0(d, " : ", cond))
-    },
-    warning= function(cond){
-      # print(d)
+        
+        )
+      
     }
-    
-    )
   
+  return(result)
+      
 }
 
+results <- findTokensInSentences("/home/suso/allpdfs/allpdfs/",c("subgroup","sub-group"))
 
 
