@@ -44,14 +44,18 @@ getPDFTermStats <- function(filename) {
 }
 
 
-# document <- d
-# tokens <- c("patient")
+# document <- "/home/suso/allpdfs/testpdfs/CACZ885I2202-4735.pdf"
+# tokens <- c("subgroup","sub-group","interaction","stratif*","restrict*","hetero*","homo*")
+
+# tokens <- c("hetero*","homo*")
 
 getDocumentParagraphsForTokens <- function(document, tokens, around = TRUE){
   
 
   searchPattern <- paste0(tokens, "|", collapse = "")
   searchPattern <- substr(searchPattern,1,str_length(searchPattern)-1)
+  
+  searchPattern <- str_replace_all(searchPattern, "\\*", "[A-z]*")
   
   
   text <- pdf_text(document)
@@ -114,25 +118,27 @@ getPagesWithTerms <- function(terms, tstats){
 # Given tokens do a seach on sentences of all PDFS located within the folder. // folder is a string that needs to be terminated with "/"
 findTokensInSentences <- function (folder, tokens){
 
-  docs <- paste0(folder,list.files(folder))
-  
+  fileNames <- list.files(folder)
+  docs <- paste0(folder,fileNames)
+  # browser()
     for( d in 1:length(docs) ){
-     
+      f <- str_replace_all(fileNames[d],".pdf","")
+      
       print(paste0(d,"/",length(docs), " : ", docs[d]))
       
       d <- docs[d]
-      
+
       tryCatch(
         {
-          res <- getDocumentParagraphsForTokens(d, tokens)
+          res <- getDocumentParagraphsForTokens(d, tokens, TRUE)
           
           # res <- getDocumentParagraphsForTokens(d, c("patient","population"), FALSE)
           
           if ( length(res) > 0 ){
             if (!exists("result")){
-                result <- data.table(doc=d,sentences=res)
+                result <- data.table(filename=d, doc=f,sentences=res)
             } else {
-                result <- result %>% rbind(data.table(doc=d,sentences=res))
+                result <- result %>% rbind(data.table(filename=d,doc=f,sentences=res))
             }
           }
       
@@ -152,6 +158,62 @@ findTokensInSentences <- function (folder, tokens){
       
 }
 
-results <- findTokensInSentences("/home/suso/allpdfs/allpdfs/",c("subgroup","sub-group"))
 
 
+#Parallel version
+
+
+
+findTokensInSentences_par <- function (folder, tokens, cores = 4){
+  library(doParallel)
+  registerDoParallel(cores=cores)
+  
+  fileNames <- list.files(folder)
+  docs <- paste0(folder,fileNames)
+  
+  
+  result <- foreach(d=1:length(docs), .combine=rbind) %dopar% {
+    
+  # for( d in 1:length(docs) ){
+    f <- str_replace_all(fileNames[d],".pdf","")
+    
+    # print(paste0(d,"/",length(docs), " : ", docs[d]))
+    
+    d <- docs[d]
+    
+    tryCatch(
+      {
+        res <- getDocumentParagraphsForTokens(d, tokens, TRUE)
+        
+        # res <- getDocumentParagraphsForTokens(d, c("patient","population"), FALSE)
+        
+        if ( length(res) > 0 ){
+         return(data.table(filename=d,doc=f,sentences=res))
+        } else {
+         return(data.table(filename=d,doc=f,sentences=NA))
+        }
+        
+      },
+      error= function(cond){
+        return(data.table(filename=d,doc=f,sentences=NA))
+      },
+      warning= function(cond){
+        # print(d)
+      }
+      
+    )
+    
+  }
+  
+  return(result)
+  
+}
+
+
+# results <- findTokensInSentences("/home/suso/allpdfs/allpdfs/",c("subgroup","sub-group","interaction","stratif*","restrict*","hetero*","homo*"))
+
+results_par <- findTokensInSentences_par("/home/suso/allpdfs/allpdfs/",c("subgroup","sub-group","interaction","stratif*","restrict*","hetero*","homo*"), 8) ## Beast mode. Using parallelisation. 
+
+results_par <- results_par %>% filter(! (sentences %>% is.na())) -> results
+
+saveRDS(results, "result.rds")
