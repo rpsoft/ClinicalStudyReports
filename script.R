@@ -103,7 +103,7 @@ getTablesPerPage <- function(document){
 }
 
 #new version to parallelise the table extraction.
-getTablesPerPage_par <- function(document,cores){
+getTablesPerPage_par <- function(document,cores=2){
   
   library(doParallel)
   registerDoParallel(cores=cores)
@@ -111,7 +111,7 @@ getTablesPerPage_par <- function(document,cores){
   npages <- get_n_pages(document)
   
   
-  tables <- foreach(page=1:npages, .combine=rbind) %dopar% {
+  tables <- foreach(page=1:10, .combine=rbind) %dopar% {
     
     # for (page in 1:npages) {
     
@@ -122,7 +122,7 @@ getTablesPerPage_par <- function(document,cores){
     tryCatch({
       return(ifelse(possible_table %>% is_empty(), NA, possible_table))
     }, error = function(e) {
-      browser()
+      # browser()
       return(NA)
     })
     
@@ -313,14 +313,14 @@ extractAllTables_par <- function (folder, cores = 4){
 # These are novo nordisk and novartis CSRs
 # results_par <- findTokensInSentences_par("/home/suso/allpdfs/allpdfs/",c("subgroup","sub-group","interaction","stratif*","restrict*","hetero*","homo*"), 8) ## Beast mode. Using parallelisation. 
 # results_par <- results_par %>% filter(! (sentences %>% is.na())) -> results
-saveRDS(results, "sentences-novo-nova.rds")
-
-
-# These are GSKs CSRs
-results_par <- findTokensInSentences_par("/home/suso/ihw/Decoded/",c("subgroup","sub-group","interaction","stratif*","restrict*","hetero*","homo*"), 8) ## Beast mode. Using parallelisation. 
-results_par <- results_par %>% filter(! (sentences %>% is.na())) -> results
-
-
-results_tables <- extractAllTables_par("/home/suso/ihw/testset/",8)
-
-saveRDS(results, "sentences-gsk.rds")
+# saveRDS(results, "sentences-novo-nova.rds")
+# 
+# 
+# # These are GSKs CSRs
+# results_par <- findTokensInSentences_par("/home/suso/ihw/Decoded/",c("subgroup","sub-group","interaction","stratif*","restrict*","hetero*","homo*"), 8) ## Beast mode. Using parallelisation. 
+# results_par <- results_par %>% filter(! (sentences %>% is.na())) -> results
+# 
+# 
+# results_tables <- extractAllTables_par("/home/suso/ihw/testset/",8)
+# 
+# saveRDS(results, "sentences-gsk.rds")
