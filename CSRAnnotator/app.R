@@ -9,13 +9,15 @@
 
 library(shiny)
 
-results <- readRDS("../result.rds")
+results <- readRDS("../sentences-gsk.rds")
+annotation_file <- "./annotations-gsk.rds"
+
 
 totalDocs <- (results %>% select(doc) %>% distinct %>% dim)[1]
 docids <- (results %>% select(doc) %>% distinct )
 
-if(file.exists("./Results.rds")){
-  sg_results <- readRDS("./Results.rds")
+if(file.exists(annotation_file)){
+  sg_results <- readRDS(annotation_file)
 } else {
   sg_results <- data.table(docid=docids,sg="dk")
 }
@@ -30,7 +32,8 @@ getResultsSentences <- function (index, results){
 
 getCurrentDocId <- function ( index, results){
   docList <- (results %>% select(doc) %>% distinct )
-  currentDocID <- docList[index] %>% toString()
+  # browser()
+  currentDocID <- docList[index,] %>% toString()
   return(currentDocID)
 }
 
@@ -80,7 +83,7 @@ server <- function(input, output, session) {
       
       sg_results( sg_results() %>% mutate(sg = ifelse(docid.doc == docid, input$hasSubroup, sg)))
       
-      write_rds(sg_results(),"./Results.rds")
+      write_rds(sg_results(),annotation_file)
     
   })
   
