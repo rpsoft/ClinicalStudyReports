@@ -82,18 +82,21 @@ getTablesPerPage <- function(document){
   
   npages <- get_n_pages(document)
   
+  npages <- 30
+  
   tables <- list()
   
   for (page in 1:npages) {
     
-    possible_table <- extract_tables(document, pages = page,  output = "data.frame") %>% print
-    
-    print(possible_table)
+    print(paste0(page,"/",npages))
+    possible_table <- extract_tables(document, pages = page,  output = "data.frame")
+    # browser()
+    # print(possible_table)
     
     tryCatch({
       tables[page] <- ifelse(possible_table %>% is_empty(), NA, possible_table)
     }, error = function(e) {
-      browser()
+      # browser()
       tables[page] <- NA
     })
     
@@ -102,34 +105,64 @@ getTablesPerPage <- function(document){
   return (tables)
 }
 
-#new version to parallelise the table extraction.
-getTablesPerPage_par <- function(document,cores){
-  
-  library(doParallel)
-  registerDoParallel(cores=cores)
+#new version to parallelise the table extraction. ## file access racing conditions make it fail.
+# getTablesPerPage_par <- function(document,cores){
+#   
+#   library(doParallel)
+#   registerDoParallel(cores=cores)
+#   
+#   npages <- get_n_pages(document)
+#   
+getTablesPerPage <- function(document){
   
   npages <- get_n_pages(document)
   
+ # npages <- 10
   
-  tables <- foreach(page=1:npages, .combine=rbind) %dopar% {
+  tables <- list()
+  
+  for (page in 1:npages) {
     
-    # for (page in 1:npages) {
-    
-    possible_table <- extract_tables(document, pages = page,  output = "data.frame") %>% print
-    
-    print(possible_table)
-    
+    print(paste0(page,"/",npages))
     tryCatch({
-      return(ifelse(possible_table %>% is_empty(), NA, possible_table))
+      possible_table <- extract_tables(document, pages = page,  output = "data.frame")
+      tables[page] <- ifelse(possible_table %>% is_empty(), NA, possible_table)
     }, error = function(e) {
-      browser()
-      return(NA)
+      # browser()
+      tables[page] <- NA
     })
     
   }
   
   return (tables)
 }
+
+#   npages <- 5
+#   
+#   tables <- foreach(page=1:npages, .combine=rbind) %dopar% {
+#     
+#     # for (page in 1:npages) {
+#     
+#     possible_table <- extract_tables(document, pages = page,  output = "data.frame") %>% print
+#     
+#     # print(possible_table)
+#     
+#     tryCatch({
+#       # return(ifelse(is_empty(possible_table), list(), possible_table))
+#       return(list(list(1,2,3)))
+#     }, error = function(e) {
+#       # browser()
+#       return(list(list(1,2,3,4)))
+#     })
+#     
+#   }
+#   
+#   return (tables)
+# }
+
+# getTablesPerPage_par(d,4) -> test
+
+# getTablesPerPage(d) -> test
 
 
 # #not preserving the page number.
@@ -288,14 +321,14 @@ extractAllTables_par <- function (folder, cores = 4){
         tabs <- data.table(filename=d,doc=f,tables=res,page=1:(res %>% length))
         tabs <- tabs %>% filter (! is.na(tables) ) 
         
-        return(tabs)
+        return(1)
         
       },
       error= function(cond){
-        return(data.table(filename=d,doc=f,tables=NA,page=NA))
+        return(NA)
       },
       warning= function(cond){
-        # print(d)
+        return(NA)
       }
       
     )
@@ -306,21 +339,53 @@ extractAllTables_par <- function (folder, cores = 4){
   
 }
 
-
+extractAllTables <- function (folder){
+ 
+  fileNames <- list.files(folder)
+  docs <- paste0(folder,fileNames)
+  
+  allTables <- data.table(filename=NA,doc=NA,tables=NA,page=NA) %>% filter(!is.na(filename))
+  
+  
+  for(d in 1:length(docs)){
+    print(paste0("processing file: ",docs[d], "  ", d, " / ",length(docs) ))
+    f <- str_replace_all(fileNames[d],".pdf","")
+    d <- docs[d]
+    
+    tryCatch({
+      res <- getTablesPerPage(d)
+      tabs <- data.table(filename=d,doc=f,tables=res,page=1:(res %>% length))
+      tabs <- tabs %>% filter (! is.na(tables) ) 
+      allTables <- allTables %>% rbind(tabs)
+    },
+    error= function(cond){
+      return(paste0(d," failed, probably empty"))
+    },
+    warning= function(cond){
+      return(paste0(d," warning, probably empty"))
+    })
+  
+    
+  }
+  
+  
+  return(allTables)
+}
 
 # results <- findTokensInSentences("/home/suso/allpdfs/allpdfs/",c("subgroup","sub-group","interaction","stratif*","restrict*","hetero*","homo*"))
 
 # These are novo nordisk and novartis CSRs
 # results_par <- findTokensInSentences_par("/home/suso/allpdfs/allpdfs/",c("subgroup","sub-group","interaction","stratif*","restrict*","hetero*","homo*"), 8) ## Beast mode. Using parallelisation. 
 # results_par <- results_par %>% filter(! (sentences %>% is.na())) -> results
-saveRDS(results, "sentences-novo-nova.rds")
+# saveRDS(results, "sentences-novo-nova.rds")
 
-
-# These are GSKs CSRs
-results_par <- findTokensInSentences_par("/home/suso/ihw/Decoded/",c("subgroup","sub-group","interaction","stratif*","restrict*","hetero*","homo*"), 8) ## Beast mode. Using parallelisation. 
-results_par <- results_par %>% filter(! (sentences %>% is.na())) -> results
-
-
-results_tables <- extractAllTables_par("/home/suso/ihw/testset/",8)
-
-saveRDS(results, "sentences-gsk.rds")
+# 
+# # These are GSKs CSRs
+# results_par <- findTokensInSentences_par("/home/suso/ihw/Decoded/",c("subgroup","sub-group","interaction","stratif*","restrict*","hetero*","homo*"), 8) ## Beast mode. Using parallelisation. 
+# results_par <- results_par %>% filter(! (sentences %>% is.na())) -> results
+# 
+# 
+results_tables <- extractAllTables("/home/suso/allpdfs/allpdfs/")
+# 
+# saveRDS(results, "sentences-gsk.rds")
+results_tables
