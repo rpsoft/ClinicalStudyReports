@@ -9,32 +9,37 @@
 
 library(shiny)
 
-results <- readRDS("../sentences-gsk.rds")
-annotation_file <- "./annotations-gsk.rds"
+tables <- readRDS("../allpdfs_tables.rds")
+
+allCSR_sg <- readRDS("./all_sgs.rds")
 
 
-totalDocs <- (results %>% select(doc) %>% distinct %>% dim)[1]
-docids <- (results %>% select(doc) %>% distinct )
+tables <- tables %>% filter(tables != "NULL")
+tables <- tables %>% filter(doc %in% allCSR_sg$docid.doc)
+
+annotation_file <- "./annotation_tables.rds"
+
+totalTables <- (tables %>% select(doc) %>% dim)[1]
+docids <- (tables %>% select(doc) %>% distinct )
 
 if(file.exists(annotation_file)){
   sg_results <- readRDS(annotation_file)
 } else {
-  sg_results <- data.table(docid=docids,sg="dk")
+  sg_results <- tables %>% mutate(sg = "dk") 
 }
 
-getResultsSentences <- function (index, results){
-  docList <- (results %>% select(doc) %>% distinct )
-  currentDocID <- docList[index] %>% toString()
-  sentencesForDoc <- (results %>% filter (doc == currentDocID))
-  sentencesContent <- sentencesForDoc %>% select(sentences) %>% as_vector() %>% paste("", collapse =" [...] ")
-  return(sentencesContent)
+getTable <- function (index, results){
+  return(tables[index,]$tables[[1]])
 }
 
 getCurrentDocId <- function ( index, results){
-  docList <- (results %>% select(doc) %>% distinct )
-  # browser()
-  currentDocID <- docList[index,] %>% toString()
+  currentDocID <- tables[index,]$doc %>% toString()
   return(currentDocID)
+}
+
+getCurrentDocPage <- function ( index, results){
+  page <- tables[index,]$page %>% toString()
+  return(page)
 }
 
 
@@ -45,14 +50,22 @@ ui <- fluidPage( theme = "mystyle.css",
 
    
    mainPanel(
-     actionButton("prev", "Previous"),
-     actionButton("next", "Next"),
+
      uiOutput("index"),
      uiOutput("docid"),
+     uiOutput("doc_page"),
      
-     radioButtons(inputId = "hasSubroup",label = "Has sub groups?", choiceValues = c("dk","n","y"), choiceNames = c("Don't know","No","Yes"), selected = "dk"),
+     fixedPanel( top = 0, right = 0,
+       radioButtons(inputId = "hasSubroup",label = "About sub groups?", choiceValues = c("dk","n","y"), choiceNames = c("Don't know","No","Yes"), selected = "dk"),
+       actionButton("prev", "Previous"),
+       actionButton("next", "Next")
+     ),
      
-     uiOutput("sentences")
+     # uiOutput("tableHolder"),
+     
+     tableOutput("tableHolder")
+     
+     
      
    )
    
@@ -60,59 +73,56 @@ ui <- fluidPage( theme = "mystyle.css",
 
 # Define server logic required to draw a histogram
 server <- function(input, output, session) {
-  index <- reactiveVal(0) 
+  index <- reactiveVal(1) 
   sg_results <- reactiveVal( sg_results )
-  
   
   # First RUN
   output$docid <- renderUI({div(getCurrentDocId(index(),results),class="title")})
-  output$index <- renderUI({div(paste(index()," / ",(sg_results() %>% dim())[1] ), class="title")})    
+  output$doc_page <- renderUI({div(getCurrentDocPage(index(),results),class="title")})
   
-  output$sentences <- renderUI({
-    div(getResultsSentences(index(),results), class="sentences", id="sentences")
-  })
+  output$index <- renderUI({div(paste(index()," / ",totalTables  ), class="title")})    
+  
+  output$tableHolder <- renderTable(getTable(index(),tables), class="tableHolder", id="tableHolder")  
   
   observe({
-    docid <- getCurrentDocId(index(),results)  
-    updateRadioButtons(session, "hasSubroup", selected= (sg_results() %>% filter(docid.doc == docid))[2]   )
+    docid <- getCurrentDocId(index(),tables)
+    Page <- getCurrentDocPage(index(),tables)  
+    
+    updateRadioButtons(session, "hasSubroup", selected= (sg_results() %>% filter(doc == docid & page == Page))$sg %>% as.character()   )
   })
   
   observeEvent(input$hasSubroup, {
       
-      docid <- getCurrentDocId(index(),results)  
+      docid <- getCurrentDocId(index(),tables)
+      Page <- getCurrentDocPage(index(),tables)  
       
-      sg_results( sg_results() %>% mutate(sg = ifelse(docid.doc == docid, input$hasSubroup, sg)))
+      sg_results( sg_results() %>% mutate(sg = ifelse(doc == docid & page == Page, input$hasSubroup, sg)))
       
-      write_rds(sg_results(),annotation_file)
+      write_rds(sg_results(), annotation_file)
     
   })
   
   
   observeEvent(input$prev, {
-    # Change the following line for more examples
-   
-    
-    index( ifelse(index() -1 < 0 , 1, index()-1 ) )
-    
-    output$docid <- renderUI({div(getCurrentDocId(index(),results),class="title")})    
-    
-    output$sentences <- renderUI({
-      div(getResultsSentences(index(),results), class="sentences", id="sentences")
-    })
-    
-    # print(sg_results)
+    index( ifelse(index() -1 <= 0 , 1, index()-1 ) )
+
+    output$docid <- renderUI({div(getCurrentDocId(index(),tables),class="title")})
+
+   #  output$sentences <- renderUI({
+   #    div(getResultsSentences(index(),results), class="sentences", id="sentences")
+   #  })
+
   })
   
   observeEvent(input$"next", {
-    # Change the following line for more examples
     
-    index( ifelse(index() +1 < 0 , 1, index()+1 ) )
-    
-    output$docid <- renderUI({div(getCurrentDocId(index(),results),class="title")})    
-    
-    output$sentences <- renderUI({
-      div(getResultsSentences(index(),results), class="sentences", id="sentences")
-    })
+    index( ifelse(index() +1 > totalTables , index(), index()+1 ) )
+
+    output$docid <- renderUI({div(getCurrentDocId(index(),tables),class="title")})
+
+    # output$sentences <- renderUI({
+    #   div(getResultsSentences(index(),results), class="sentences", id="sentences")
+    # })
     
     
     

@@ -1,4 +1,5 @@
 # install.packages("tm")
+# install.packages("pdftools")
 library(pdftools)
 library(dplyr)
 library(stringr)
@@ -7,6 +8,8 @@ library(tidyverse)
 library(tidyr)
 library("tabulizer")
 library(data.table)
+library(tm)
+# library("rpoppler")
 
 # download.file("http://theses.gla.ac.uk/8666/1/2018Rodriguez-PerezPhD.pdf", "./mypaper.pdf")
 
@@ -368,7 +371,6 @@ extractAllTables <- function (folder){
     
   }
   
-  
   return(allTables)
 }
 
@@ -385,7 +387,21 @@ extractAllTables <- function (folder){
 # results_par <- results_par %>% filter(! (sentences %>% is.na())) -> results
 # 
 # 
-results_tables <- extractAllTables("/home/suso/allpdfs/allpdfs/")
+# results_tables <- extractAllTables("/home/suso/allpdfs/allpdfs/")
+
+results_tables_gsk <- extractAllTables("/home/suso/ihw/Decoded/")
+
+
+# p <- extract_text("/home/suso/ihw/Decoded/102871.pdf.decoded.pdf",pages = 24)
+
+
 # 
 # saveRDS(results, "sentences-gsk.rds")
-results_tables
+# results_tables
+# all_aact_tables <- readRDS("~/ihw/csr/all_aact_tables.Rds")
+# 
+# 
+# all_aact_tables %>%  View
+
+# make_thumbnails(file = "/home/suso/allpdfs/allpdfs/CACZ885I2202-4735.pdf", pages = 9, resolution = 120) -> thumbnail
+
