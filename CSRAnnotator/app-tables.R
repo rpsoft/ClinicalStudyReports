@@ -9,7 +9,11 @@
 
 library(shiny)
 
-tables <- readRDS("../allpdfs_tables.rds")
+tables <- readRDS("./testTables.rds")
+
+colnames(tables) <- c("filename", "doc", "tables", "page")
+
+
 
 allCSR_sg <- readRDS("./all_sgs.rds")
 
