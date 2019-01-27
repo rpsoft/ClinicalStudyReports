@@ -79,3 +79,76 @@ checkingfiles %>% anti_join(GSK_final_matched) %>% View
 
 checkingfiles %>% left_join(GSK_final_matched) %>% select(SIN,full_SIN,`Trial Registry Identification Number(s)`,filename) %>% distinct %>% write_csv("GSK_matches.csv")
 
+###### NOW we check for Novo Nordisk and Novartis
+
+novo_novartis_wanted <- read_rds("novo_novartis_wanted.rds")
+
+novo_novartis_wanted %>% select(nct_id) %>% write_csv("novo_novartis_wanted_nctids.csv")
+
+novo_novartis_wanted %>% filter(nct_id == "NCT00171496")
+
+novo_novartis_wanted %>% View()
+
+files_wanted <- list.files("/home/suso/ihw/csr/allpdfs/wanted")
+
+files_wanted <- files_wanted %>% as_data_frame()
+
+colnames(files_wanted)[1] <- "filename"
+
+files_wanted %>% View()
+
+
+all_aact_tables$id_information %>% select(nct_id,id_value) %>% distinct() -> docIds
+
+docIds %>% View
+
+found <- setNames(data.frame(matrix(ncol = 2, nrow = 0)), c("filename", "d"))
+v <- 0
+for ( d in docIds$id_value ){
+  
+  if ( d %>% str_length() > 4){
+    find <- files_wanted %>% filter(str_detect(filename,d))
+  
+    if( find %>% nrow() == 1 ){
+      # print(paste0("here",d))
+      # print(find)
+      
+      found <- found %>% rbind (find %>% cbind(d))
+      v <- v+1
+    }
+    
+  }
+  
+}
+
+files_wanted %>% anti_join(found %>% select(filename)) -> not_found
+
+colnames(found)[2] <- "id_value"
+
+found %>% inner_join(docIds) %>% View()
+
+#### Used the lines before as partial work. Finished the matching manually. And generated the final file below: 
+
+all_matched_filenames_nctids_gsk_novo_novartis <- read_csv("all_matched_filenames_nctids_gsk_novo_novartis.csv")
+
+
+all_matched_filenames_nctids_gsk_novo_novartis
+
+all_annotations <- `annotations-gsk` %>% rbind(`Results-novo-novartis`)
+
+all_matched_filenames_nctids_gsk_novo_novartis <- all_matched_filenames_nctids_gsk_novo_novartis %>% 
+  mutate( docid.doc = str_replace_all(filename,".pdf","") )
+
+all_annotations %>% inner_join(all_matched_filenames_nctids_gsk_novo_novartis) %>% View()
+
+
+joined_sg <- all_matched_filenames_nctids_gsk_novo_novartis %>% 
+  mutate( docid.doc = str_replace_all(filename,".pdf","") ) %>% 
+  anti_join(`annotations-gsk` %>% 
+  rbind(`Results-novo-novartis`))
+
+
+joined_sg %>% select(nct_id)
+
+
+## /home/suso/ihw/csr/allpdfs/done/nct_id_not_found <- these may be a challenge
