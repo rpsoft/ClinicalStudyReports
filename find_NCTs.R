@@ -139,7 +139,7 @@ all_annotations <- `annotations-gsk` %>% rbind(`Results-novo-novartis`)
 all_matched_filenames_nctids_gsk_novo_novartis <- all_matched_filenames_nctids_gsk_novo_novartis %>% 
   mutate( docid.doc = str_replace_all(filename,".pdf","") )
 
-all_annotations %>% inner_join(all_matched_filenames_nctids_gsk_novo_novartis) %>% View()
+all_annotations %>% inner_join(all_matched_filenames_nctids_gsk_novo_novartis) %>% write_csv("final_annotations_filename_nct_id.csv")
 
 
 joined_sg <- all_matched_filenames_nctids_gsk_novo_novartis %>% 
